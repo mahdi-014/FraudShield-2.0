@@ -1,0 +1,30 @@
+[
+  {
+    "document_id": "POL_001",
+    "title": "Wire Transfer & High-Value Transaction Verification Policy",
+    "category": "POLICY",
+    "source": "FraudShield Compliance Handbook v2.4 Section 4.1",
+    "content": "Wire transfers or outgoing transfers exceeding $2,500 that originate from a newly registered device (less than 48 hours old) or an unrecognized geographic location must be held for human investigator review. Required evidence includes device fingerprint history, IP subnet verification, and secondary baseline amount comparison."
+  },
+  {
+    "document_id": "POL_002",
+    "title": "Account Takeover (ATO) Detection & Response Protocol",
+    "category": "POLICY",
+    "source": "FraudShield Security Operations Guide Section 8.3",
+    "content": "An Account Takeover (ATO) pattern is flagged when a high-risk transaction is preceded by credential update, new device addition, or IP location change within 15 minutes. Investigators must examine velocity in the preceding 24 hours and verify if beneficiary accounts are associated with known money mule networks."
+  },
+  {
+    "document_id": "TYP_001",
+    "title": "Coordinated Fraud Ring & Money Mule Networks",
+    "category": "FRAUD_TYPOLOGY",
+    "source": "Financial Crime Typology Library 2026",
+    "content": "Fraud rings frequently deploy shared infrastructure across multiple compromised accounts, such as sharing a single mobile device fingerprint, VPN exit node IP address, or receiving beneficiary account. Rapid P2P layering across 3 or more accounts sharing one infrastructure node indicates organized money laundering or syndicate bustout."
+  },
+  {
+    "document_id": "CAS_001",
+    "title": "Historical Case #8491 — Shared Device Syndicate",
+    "category": "HISTORICAL_CASE",
+    "source": "FraudShield Historical Case Archives 2025",
+    "content": "In Case #8491, 12 distinct customer accounts executed wire transfers to a common offshore beneficiary. All transactions originated from device fingerprint 'DEV_RING_999'. Analyst confirmed fraud and froze all 12 accounts. Precedent confirms multi-account device sharing warrants immediate freeze."
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "winning_model_name": "Calibrated Supervised Fraud Classifier (Fallback Engine)",
+  "features": [
+    "amount",
+    "amount_log",
+    "transaction_hour",
+    "transaction_day_of_week",
+    "is_weekend",
+    "amount_deviation",
+    "transaction_velocity_1h",
+    "transaction_velocity_24h",
+    "time_since_last_txn_min",
+    "device_novelty",
+    "beneficiary_novelty",
+    "shared_device_count",
+    "shared_ip_count",
+    "is_high_risk_type"
+  ],
+  "optimal_threshold": 0.5,
+  "evaluations": {
+    "Calibrated Supervised Fraud Classifier (Fallback Engine)": {
+      "precision": 0.1125,
+      "recall": 0.0857,
+      "f1": 0.0973,
+      "pr_auc": 0.958,
+      "optimal_threshold": 0.5
+    }
+  },
+  "training_samples": 3500,
+  "test_samples": 750,
+  "dataset_fraud_rate": 0.0926
+}
