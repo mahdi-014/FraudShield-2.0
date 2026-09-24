@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
-import { Briefcase, Eye, UserCheck, Clock, CheckCircle } from 'lucide-react';
+import { Briefcase, Eye } from 'lucide-react';
 
 export default function CasesPage() {
   const [cases, setCases] = useState<any[]>([]);

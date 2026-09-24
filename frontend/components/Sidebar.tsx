@@ -13,8 +13,7 @@ import {
   BrainCircuit,
   Cpu,
   Sliders,
-  LogOut,
-  Activity
+  LogOut
 } from 'lucide-react';
 
 const navigation = [

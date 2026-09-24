@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header';
-import { Share2, ZoomIn, ZoomOut, RefreshCw, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Share2, AlertTriangle } from 'lucide-react';
 import { ReactFlow, Background, Controls, Node, Edge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 

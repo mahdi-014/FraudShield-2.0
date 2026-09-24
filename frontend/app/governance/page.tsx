@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Header from '@/components/Header';
-import { Sliders, Activity, Clock, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Sliders, ShieldCheck } from 'lucide-react';
 
 export default function GovernancePage() {
   const metrics = [

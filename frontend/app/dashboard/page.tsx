@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import {
-  ShieldAlert,
   AlertTriangle,
   Briefcase,
   Share2,
@@ -11,11 +10,10 @@ import {
   Activity,
   Clock,
   ArrowUpRight,
-  TrendingUp,
-  Cpu
+  TrendingUp
 } from 'lucide-react';
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 
 export default function ExecutiveDashboard() {

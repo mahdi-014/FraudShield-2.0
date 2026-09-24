@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header';
-import { Cpu, CheckCircle, Sliders, ShieldCheck } from 'lucide-react';
+import { Cpu, CheckCircle } from 'lucide-react';
 
 export default function ModelsPage() {
   const [models, setModels] = useState<any[]>([]);

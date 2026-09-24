@@ -19,7 +19,6 @@ class BehaviorEngine:
         device_id = transaction.get("device_id")
         beneficiary_id = transaction.get("beneficiary_id")
         location = transaction.get("location")
-        tx_type = transaction.get("transaction_type")
         
         ts_raw = transaction.get("timestamp")
         if isinstance(ts_raw, str):

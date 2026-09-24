@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
-import { Bell, AlertTriangle, ShieldAlert, Eye, CheckCircle2 } from 'lucide-react';
+import { Bell, Eye } from 'lucide-react';
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<any[]>([]);

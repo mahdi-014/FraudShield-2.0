@@ -4,19 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Header from '@/components/Header';
 import {
-  ShieldAlert,
-  AlertTriangle,
   CheckCircle,
-  XCircle,
   BrainCircuit,
   Share2,
   Clock,
-  TrendingUp,
   FileText,
   UserCheck,
   Zap,
-  ArrowRight,
-  Database
+  ArrowRight
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search, Bell, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Search, ShieldCheck, RefreshCw } from 'lucide-react';
 
 interface HeaderProps {
   title: string;

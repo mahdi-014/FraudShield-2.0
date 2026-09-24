@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Header from '@/components/Header';
-import { BrainCircuit, Send, User, Bot, FileText, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
+import { BrainCircuit, Send, User, ArrowRight } from 'lucide-react';
 
 export default function InvestigationPage() {
   const [messages, setMessages] = useState<any[]>([

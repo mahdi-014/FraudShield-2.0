@@ -8,7 +8,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState('analyst1');
   const [password, setPassword] = useState('FraudShield2026!');
-  const [error, setError] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();

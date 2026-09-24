@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
-import { Filter, Eye, AlertTriangle, ArrowUpRight, Search } from 'lucide-react';
+import { Eye, AlertTriangle, Search } from 'lucide-react';
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([]);

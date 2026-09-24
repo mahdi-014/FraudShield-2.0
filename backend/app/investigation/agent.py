@@ -1,6 +1,6 @@
-import json
 import logging
 from typing import Dict, List, Any, Optional
+import numpy as np
 
 from backend.app.services.behavior_engine import BehaviorEngine
 from backend.app.services.risk_fusion import RiskFusionEngine
@@ -175,6 +175,3 @@ class AIInvestigationAgent:
             "recommended_next_steps": recommended_steps,
             "confidence": "HIGH" if len(user_history) >= 3 else "MEDIUM",
         }
-
-
-import numpy as np # import numpy inside file scope
