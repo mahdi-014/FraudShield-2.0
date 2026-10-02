@@ -1,0 +1,186 @@
+{
+  "model_version": "ieee-xgb-v0.1.0",
+  "schema_version": "ieee-replay-v1",
+  "dataset_sha256": "4cc646da09d0a9b265983ffed775b1f9ee15af5266586df610e04d6adae0b829",
+  "raw_feature_contract": [
+    "TransactionAmt",
+    "TransactionDT",
+    "dist1",
+    "dist2",
+    "ProductCD",
+    "card1",
+    "card2",
+    "card3",
+    "card4",
+    "card5",
+    "card6",
+    "addr1",
+    "addr2",
+    "P_emaildomain",
+    "R_emaildomain",
+    "DeviceType",
+    "DeviceInfo"
+  ],
+  "encoded_feature_count": 622,
+  "split": {
+    "method": "chronological 70/15/15 with boundary ties grouped",
+    "cutoffs": [
+      10437998.1,
+      13151845.999999998
+    ],
+    "parts": [
+      {
+        "name": "train",
+        "rows": 413378,
+        "frauds": 14538,
+        "time_min": 86400.0,
+        "time_max": 10437996.0
+      },
+      {
+        "name": "validation",
+        "rows": 88581,
+        "frauds": 3042,
+        "time_min": 10438003.0,
+        "time_max": 13151840.0
+      },
+      {
+        "name": "test",
+        "rows": 88581,
+        "frauds": 3083,
+        "time_min": 13151880.0,
+        "time_max": 15811131.0
+      }
+    ]
+  },
+  "data_summary": {
+    "rows": 590540,
+    "frauds": 20663,
+    "identity_coverage": 0.2442391709283029,
+    "missing_fraction": {
+      "TransactionAmt": 0.0,
+      "TransactionDT": 0.0,
+      "dist1": 0.596523520845328,
+      "dist2": 0.9362837403054831,
+      "ProductCD": 0.0,
+      "card1": 0.0,
+      "card2": 0.015126833068039422,
+      "card3": 0.0026501168422122124,
+      "card4": 0.00267043722694483,
+      "card5": 0.007212043214684865,
+      "card6": 0.0026602770345785214,
+      "addr1": 0.1112642666034477,
+      "addr2": 0.1112642666034477,
+      "P_emaildomain": 0.1599485216920107,
+      "R_emaildomain": 0.7675161716395164,
+      "DeviceType": 0.7615572188166763,
+      "DeviceInfo": 0.7990551021099332
+    }
+  },
+  "baseline": {
+    "validation": {
+      "average_precision": 0.18584779684108746,
+      "roc_auc": 0.7672351782757564,
+      "precision": 0.1621107677680057,
+      "recall": 0.44838921761998685,
+      "f1": 0.23812849162011174,
+      "false_positive_rate": 0.08241854592641953,
+      "hold_rate": 0.09498650952235807,
+      "confusion_matrix": {
+        "tn": 78489,
+        "fp": 7050,
+        "fn": 1678,
+        "tp": 1364
+      },
+      "threshold": 0.6704180712135509
+    },
+    "test": {
+      "average_precision": 0.13510932086711214,
+      "roc_auc": 0.7599967910811176,
+      "precision": 0.13325585899670733,
+      "recall": 0.4463185209211807,
+      "f1": 0.20523528973077784,
+      "false_positive_rate": 0.10468081124704672,
+      "hold_rate": 0.11657127374944966,
+      "confusion_matrix": {
+        "tn": 76548,
+        "fp": 8950,
+        "fn": 1707,
+        "tp": 1376
+      },
+      "threshold": 0.6704180712135509
+    },
+    "threshold_selection": {
+      "objective": "maximize validation F2 under hold-rate budget",
+      "hold_rate_budget": 0.1,
+      "validation_hold_rate": 0.09498650952235807,
+      "validation_precision": 0.1621107677680057,
+      "validation_recall": 0.44838921761998685
+    }
+  },
+  "xgboost": {
+    "validation": {
+      "average_precision": 0.2440364728956315,
+      "roc_auc": 0.8242682963188319,
+      "precision": 0.21502821502821504,
+      "recall": 0.4760026298487837,
+      "f1": 0.29623567921440264,
+      "false_positive_rate": 0.061796373583979235,
+      "hold_rate": 0.0760208171052483,
+      "confusion_matrix": {
+        "tn": 80253,
+        "fp": 5286,
+        "fn": 1594,
+        "tp": 1448
+      },
+      "threshold": 0.6274896264076233
+    },
+    "test": {
+      "average_precision": 0.21086028375849403,
+      "roc_auc": 0.8056761633755509,
+      "precision": 0.19620342824762715,
+      "recall": 0.4492377554330198,
+      "f1": 0.2731216722539933,
+      "false_positive_rate": 0.06636412547661934,
+      "hold_rate": 0.0796897754597487,
+      "confusion_matrix": {
+        "tn": 79824,
+        "fp": 5674,
+        "fn": 1698,
+        "tp": 1385
+      },
+      "threshold": 0.6274896264076233
+    },
+    "threshold_selection": {
+      "objective": "maximize validation F2 under hold-rate budget",
+      "hold_rate_budget": 0.1,
+      "validation_hold_rate": 0.0760208171052483,
+      "validation_precision": 0.21502821502821504,
+      "validation_recall": 0.4760026298487837
+    }
+  },
+  "policy": {
+    "version": "research-policy-v0.1.0",
+    "warn": 0.15687240660190582,
+    "pause": 0.37649377584457394,
+    "hold": 0.6274896264076233,
+    "note": "Only hold threshold tuned; warn and pause bands are illustrative research policy."
+  },
+  "runtime_versions": {
+    "pandas": "2.2.3",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.8.0",
+    "xgboost": "3.4.1",
+    "joblib": "1.5.3"
+  },
+  "limitations": [
+    "Historical IEEE-CIS replay only; not validated on Bangladesh MFS or bank transfers.",
+    "Scores are uncalibrated; class weighting changes their interpretation.",
+    "Feature availability at payment authorization must be verified with a real provider.",
+    "No customer IDs or unique device IDs; no claimed account/network fraud evidence.",
+    "Identity coverage is partial; DeviceInfo is a description, not a unique identifier.",
+    "XGBoost is an integration candidate; compare baseline before promoting.",
+    "No hyperparameter search; first fixed baseline experiment."
+  ],
+  "training_seconds": 92.16685032600003
+}

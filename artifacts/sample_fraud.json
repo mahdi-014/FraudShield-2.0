@@ -1,0 +1,22 @@
+{
+  "transaction_id": "3488979",
+  "features": {
+    "TransactionAmt": 46.725,
+    "TransactionDT": 13153151,
+    "dist1": null,
+    "dist2": null,
+    "ProductCD": "C",
+    "card1": 14260,
+    "card2": 500.0,
+    "card3": 185.0,
+    "card4": "mastercard",
+    "card5": 224.0,
+    "card6": "credit",
+    "addr1": null,
+    "addr2": null,
+    "P_emaildomain": "hotmail.com",
+    "R_emaildomain": "hotmail.com",
+    "DeviceType": "desktop",
+    "DeviceInfo": null
+  }
+}

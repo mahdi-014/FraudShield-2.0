@@ -1,0 +1,60 @@
+{
+  "transaction_id": "3488979",
+  "model_score": 0.8056925535202026,
+  "score_interpretation": "uncalibrated model score, not validated fraud probability",
+  "action": "hold",
+  "policy_reasons": [
+    "Model score meets hold threshold (0.627490)"
+  ],
+  "model_factors": [
+    {
+      "feature": "addr2",
+      "contribution_log_odds": 0.6256132524331406,
+      "direction": "increases_score",
+      "value": "__MISSING__"
+    },
+    {
+      "feature": "card3",
+      "contribution_log_odds": 0.5890629364287179,
+      "direction": "increases_score",
+      "value": "185"
+    },
+    {
+      "feature": "card6",
+      "contribution_log_odds": 0.4238056242465973,
+      "direction": "increases_score",
+      "value": "credit"
+    },
+    {
+      "feature": "relative_hour_sin",
+      "contribution_log_odds": 0.15739567577838898,
+      "direction": "increases_score",
+      "value": 0.9958778049953853
+    },
+    {
+      "feature": "TransactionAmt",
+      "contribution_log_odds": -0.14722606539726257,
+      "direction": "decreases_score",
+      "value": 46.725
+    }
+  ],
+  "explanation": {
+    "method": "XGBoost TreeSHAP",
+    "units": "log odds",
+    "base_margin": 0.016142241656780243,
+    "all_feature_contributions_sum": 1.4061183571486708,
+    "model_margin": 1.4222606420516968,
+    "note": "Top factors are associations, not causal proof or full explanation sum."
+  },
+  "missing_features": [
+    "dist1",
+    "dist2",
+    "addr1",
+    "addr2",
+    "DeviceInfo"
+  ],
+  "model_version": "ieee-xgb-v0.1.0",
+  "policy_version": "research-policy-v0.1.0",
+  "schema_version": "ieee-replay-v1",
+  "mode": "historical_dataset_replay"
+}

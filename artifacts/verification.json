@@ -1,0 +1,10 @@
+{
+  "requests": 30,
+  "test": "sequential local HTTP requests with explanation; not throughput test",
+  "median_ms": 22.02336849995845,
+  "p95_ms": 31.204763000005187,
+  "max_ms": 33.109230000036405,
+  "status": "all successful",
+  "unit_tests_passed": 24,
+  "training_replay_preprocessing_parity": "passed for both held-out sample records against original ZIP rows"
+}

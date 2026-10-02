@@ -1,0 +1,22 @@
+{
+  "transaction_id": "3488959",
+  "features": {
+    "TransactionAmt": 57.95,
+    "TransactionDT": 13151880,
+    "dist1": null,
+    "dist2": null,
+    "ProductCD": "W",
+    "card1": 7919,
+    "card2": 194.0,
+    "card3": 150.0,
+    "card4": "mastercard",
+    "card5": 166.0,
+    "card6": "debit",
+    "addr1": 143.0,
+    "addr2": 87.0,
+    "P_emaildomain": "anonymous.com",
+    "R_emaildomain": null,
+    "DeviceType": null,
+    "DeviceInfo": null
+  }
+}
