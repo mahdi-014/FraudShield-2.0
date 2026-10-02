@@ -83,38 +83,37 @@ def submit_transaction(
         schema_version=assessment['schema_version'],
         version=1,
     )
-    session.add(tx)
-    session.flush() # Populate tx.id
-
-    case_id = None
-    if requires_review_case(status):
-        case = ReviewCaseRecord(
-            transaction_id=tx.id,
-            status='open'
-        )
-        session.add(case)
-        session.flush()
-        case_id = case.id
-
-    audit = AuditEventRecord(
-        transaction_id=tx.id,
-        case_id=case_id,
-        event_type='TRANSACTION_SUBMITTED',
-        actor=service_actor,
-        actor_role=ROLE_SERVICE,
-        action='submit_transaction',
-        reason=f"Initial risk assessment action: {assessment['action']}",
-        previous_status=None,
-        resulting_status=status,
-        payload={
-            'model_score': tx.model_score,
-            'recommended_action': tx.recommended_action,
-            'policy_reasons': tx.policy_reasons
-        }
-    )
-    session.add(audit)
-
     try:
+        session.add(tx)
+        session.flush() # Populate tx.id
+
+        case_id = None
+        if requires_review_case(status):
+            case = ReviewCaseRecord(
+                transaction_id=tx.id,
+                status='open'
+            )
+            session.add(case)
+            session.flush()
+            case_id = case.id
+
+        audit = AuditEventRecord(
+            transaction_id=tx.id,
+            case_id=case_id,
+            event_type='TRANSACTION_SUBMITTED',
+            actor=service_actor,
+            actor_role=ROLE_SERVICE,
+            action='submit_transaction',
+            reason=f"Initial risk assessment action: {assessment['action']}",
+            previous_status=None,
+            resulting_status=status,
+            payload={
+                'model_score': tx.model_score,
+                'recommended_action': tx.recommended_action,
+                'policy_reasons': tx.policy_reasons
+            }
+        )
+        session.add(audit)
         session.commit()
     except IntegrityError:
         session.rollback()
@@ -143,12 +142,18 @@ def get_transaction_by_id(session: Session, transaction_id: str) -> Optional[Tra
 def list_cases(
     session: Session,
     status: Optional[str] = None,
+    resolution: Optional[str] = None,
+    recommended_action: Optional[str] = None,
     limit: int = 20,
     offset: int = 0
 ) -> Tuple[List[ReviewCaseRecord], int]:
     query = session.query(ReviewCaseRecord)
     if status:
         query = query.filter(ReviewCaseRecord.status == status)
+    if resolution:
+        query = query.filter(ReviewCaseRecord.resolution == resolution)
+    if recommended_action:
+        query = query.join(TransactionRecord).filter(TransactionRecord.recommended_action == recommended_action)
     total = query.count()
     items = query.order_by(ReviewCaseRecord.created_at.desc()).offset(offset).limit(limit).all()
     return items, total
@@ -186,7 +191,10 @@ def execute_analyst_action(
         )
 
     # State machine transition check
-    resulting_status = validate_analyst_transition(tx.status, action)
+    try:
+        resulting_status = validate_analyst_transition(tx.status, action)
+    except ValueError as err:
+        raise InvalidStateTransitionError(str(err))
 
     prev_status = tx.status
     now = utc_now()
@@ -234,6 +242,8 @@ def execute_analyst_action(
         },
         created_at=now
     )
+    session.add(audit_rec)
+
     try:
         session.commit()
     except Exception:

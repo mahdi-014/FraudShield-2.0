@@ -102,7 +102,7 @@ def main():
     print(f"[Step 4] Analyst releasing case POST /v1/cases/{case_id}/actions ...")
     action_payload = {
         "action": "release",
-        "reason": "Customer identity confirmed via out-of-band verification and historical profile match.",
+        "reason": "Simulated analyst decision: customer identity verified via simulated out-of-band contact and historical profile match.",
         "expected_version": tx_data["version"]
     }
     action_res = client.post(

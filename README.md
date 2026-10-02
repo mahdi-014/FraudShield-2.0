@@ -9,7 +9,7 @@ FraudShield scores transaction requests against a reproducible IEEE-CIS fraud de
 
 ## Architecture & System Overview
 
-- **ML Inference & Explainability:** Preprocessor and XGBoost booster generating calibrated risk scores and exact TreeSHAP log-odds feature contributions.
+- **ML Inference & Explainability:** Preprocessor and XGBoost booster generating uncalibrated risk scores and exact TreeSHAP log-odds feature contributions. The model produces uncalibrated scores reflecting margin probabilities under class weighting, not empirical fraud probabilities.
 - **Persistence:** PostgreSQL database accessed via SQLAlchemy 2.0 and versioned with Alembic migrations.
 - **Workflow State Machine:**
   - Initial scoring policy mapping:
@@ -165,7 +165,7 @@ $headers = @{
 }
 $body = @{
     action = "release"
-    reason = "Customer telephone confirmation and valid identity matched."
+    reason = "Simulated analyst decision: customer telephone confirmation and valid identity matched."
     expected_version = 1
 } | ConvertTo-Json
 
@@ -180,20 +180,95 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/v1/transactions/<TRANSACTION_ID>/a
 
 ---
 
-## Testing & Verification
+---
 
-Run the entire test suite (pipeline validation, feature normalization, TreeSHAP explanation reconciliation, authentication, state transitions, idempotency, and concurrency):
+## Milestone 3: Analyst Dashboard (Web Console)
+
+FraudShield includes a real-time analyst dashboard built with **React, TypeScript, Vite, and Tailwind CSS** located in `frontend/`. It communicates directly with the FastAPI backend (`http://127.0.0.1:8000`) and operates on persistent PostgreSQL records.
+
+### Key Capabilities & Security Controls
+1. **In-Memory Credential Security:**
+   - Bearer tokens are kept strictly in component memory and cleared immediately on sign-out.
+   - Tokens are **never** persisted in `localStorage`, `sessionStorage`, or cookies.
+   - Rejects non-analyst credentials: if a service token is entered, authentication is rejected with HTTP 403 Forbidden.
+2. **Paginated Case Queue:**
+   - Displays client reference, model score, recommended action, simulated transaction status, case status, and timestamp.
+   - Server-supported filters: Status (`all`, `open`, `resolved`) and Resolution (`all`, `released`, `rejected`).
+3. **Transparent Model & Policy Explainability:**
+   - Scores are strictly labeled: **"Uncalibrated model score"** (reflecting margin probability under class weighting, not verified fraud probability).
+   - TreeSHAP feature explanations display directional log-odds contributions alongside a statistical association notice (no causal proof implied).
+   - Saved feature snapshot inspects the exact raw transaction attributes submitted.
+   - Policy evaluation reasons and model/policy/schema versions are shown.
+4. **Resilient Decision Controls (Release / Reject):**
+   - Enforces a required analyst justification reason (minimum 3 characters).
+   - Modal confirmation step before submission.
+   - Submits current `expected_version` for optimistic locking.
+   - Disables controls while a submission is pending to prevent duplicate submissions.
+   - On HTTP 409 Conflict, reloads the case and asks the analyst to review the latest state (never silently retries).
+   - Terminal states (`completed`, `rejected`) disable further actions.
+5. **Audit History & Asia/Dhaka Timestamps:**
+   - Displays event type, actor, role, status transition, and justification.
+   - Timestamps are displayed in `Asia/Dhaka` local time (`UTC+06:00`).
+   - Automatically refreshes case, queue, and audit data following actions.
+
+### Starting the Frontend (Windows PowerShell)
 
 ```powershell
-python -m pytest -v
+cd frontend
+npm install
+npm run dev
 ```
 
-If PostgreSQL is running at `DATABASE_URL` or `TEST_DATABASE_URL`, all live PostgreSQL integration tests run automatically. If PostgreSQL is offline, those integration tests are cleanly marked as unverified (skipped) without failing the suite.
+- **Dashboard URL:** [http://127.0.0.1:5173](http://127.0.0.1:5173)
+- **Backend API URL:** [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- **Vite Dev Proxy:** Proxies `/v1` and `/health` requests to `http://127.0.0.1:8000`.
+
+### Valid Analyst Credentials
+- **Analyst Token:** `analyst-secret-token-key-32chars-jane` (Maps to actor `analyst_jane`, role `analyst`)
+- **Service Token (for testing role rejection):** `service-secret-token-key-32chars-checkout`
+
+---
+
+## Testing & Verification
+
+1. **Full Backend Pytest Suite (49 Tests):**
+   ```powershell
+   python -m pytest -v
+   ```
+2. **Frontend Type Check & Production Bundle:**
+   ```powershell
+   cd frontend
+   npm run build
+   ```
+3. **Automated End-to-End Workflow Verification:**
+   ```powershell
+   python scripts/verify_milestone3_e2e.py
+   ```
+   Verifies:
+   - 401 unauthenticated & invalid token rejection.
+   - 403 Forbidden for service tokens accessing analyst endpoints.
+   - 200 OK for valid analyst token (`analyst_jane`).
+   - Case queue pagination and status filtering.
+   - Model score uncalibrated labeling and TreeSHAP log-odds explanations.
+   - Releasing held cases with reason and `expected_version`.
+   - Rejecting held cases with reason and `expected_version`.
+   - Optimistic concurrency conflict detection (HTTP 409).
+   - Terminal state immutability enforcement.
+   - Audit trail capture with Asia/Dhaka timestamps.
+   - PostgreSQL persistence across independent sessions.
 
 ---
 
 ## File Structure
 
+- `frontend/`: React + TypeScript + Vite + Tailwind CSS analyst dashboard.
+  - `src/components/Header.tsx`: System status, credentials, and sign-out header.
+  - `src/components/AuthModal.tsx`: In-memory credential entry with role enforcement.
+  - `src/components/CaseQueue.tsx`: Paginated case queue table with server-side filters.
+  - `src/components/CaseDetail.tsx`: Score card, TreeSHAP breakdown, policy metadata, feature snapshot.
+  - `src/components/ActionModal.tsx`: Reason validation, optimistic locking, and conflict handling.
+  - `src/components/AuditTimeline.tsx`: Immutable audit history with Asia/Dhaka time.
+  - `src/services/api.ts`: Typed API client with custom error handling.
 - `fraudshield/features.py`: Feature normalization and contract definition.
 - `fraudshield/scoring.py`: Model loader, policy evaluator, and TreeSHAP log-odds explanation reconciliation.
 - `fraudshield/state_machine.py`: Transaction status lifecycle, initial risk mapping, and analyst transition rules.
@@ -201,18 +276,12 @@ If PostgreSQL is running at `DATABASE_URL` or `TEST_DATABASE_URL`, all live Post
 - `fraudshield/db/models.py`: SQLAlchemy database models (`TransactionRecord`, `ReviewCaseRecord`, `AnalystActionRecord`, `AuditEventRecord`).
 - `fraudshield/db/session.py`: Database engine and connection lifecycle management.
 - `fraudshield/db/repository.py`: Atomic transaction submission, idempotency verification, optimistic concurrency, and audit logging.
-- `fraudshield/api.py`: FastAPI implementation with role-based dependencies and error handling.
+- `fraudshield/api.py`: FastAPI implementation with role-based dependencies, CORS middleware, and filters.
 - `alembic/`: Alembic migrations configuration and revision scripts.
 - `docker-compose.yml`: Local PostgreSQL container setup with persistent volume.
-- `scripts/replay.py`: Legacy scoring replay client.
-- `scripts/demo_milestone2.py`: End-to-end Milestone 2 workflow demonstration.
+- `scripts/prepare_milestone3_cases.py`: Generates realistic test review cases via service API.
+- `scripts/verify_milestone3_e2e.py`: Automated end-to-end analyst workflow test suite.
+- `scripts/demo_milestone2.py`: Milestone 2 workflow demonstration.
 - `tests/test_pipeline.py`: Baseline tests for data splits, feature constraints, and model reconciliation.
 - `tests/test_milestone2.py`: Milestone 2 state machine, auth, idempotency, and PostgreSQL integration tests.
-
----
-
-## Remaining Scope & Next Milestones
-
-- **Milestone 3:** Analyst Dashboard Web UI with real-time queues, metrics visualization, and case review filters.
-- **Customer Verification Rails:** Implement customer SMS/OTP verification for `pending_verification` and customer acknowledgement for `awaiting_acknowledgement`.
-- **Graph & Entity Resolution:** Identity network graphs, device sharing, and RAG entity context.
+- `tests/test_milestone3.py`: Milestone 3 query filters, `GET /v1/auth/me`, and feature serialization tests.

@@ -5,6 +5,7 @@ import secrets
 from contextlib import asynccontextmanager
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Header, Query, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
@@ -112,6 +113,14 @@ def create_app(artifact_dir=None, database_url=None):
         lifespan=lifespan
     )
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=['*'],
+        allow_credentials=True,
+        allow_methods=['*'],
+        allow_headers=['*'],
+    )
+
     def get_current_actor(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> Actor:
         if credentials is None:
             raise HTTPException(
@@ -167,6 +176,13 @@ def create_app(artifact_dir=None, database_url=None):
             'status': 'ready',
             'mode': 'historical_dataset_replay',
             'database': 'connected' if db_ok else ('unconfigured' if not app.state.database_url else 'disconnected')
+        }
+
+    @app.get('/v1/auth/me')
+    def me(actor: Actor = Depends(get_current_actor)):
+        return {
+            'identity': actor.identity,
+            'role': actor.role
         }
 
     @app.get('/v1/schema', dependencies=[Depends(require_role(ROLE_LEGACY, ROLE_SERVICE, ROLE_ANALYST))])
@@ -239,12 +255,21 @@ def create_app(artifact_dir=None, database_url=None):
     @app.get('/v1/cases')
     def get_cases(
         status_filter: Optional[str] = Query(None, alias='status'),
+        resolution_filter: Optional[str] = Query(None, alias='resolution'),
+        action_filter: Optional[str] = Query(None, alias='recommended_action'),
         limit: int = Query(20, ge=1, le=100),
         offset: int = Query(0, ge=0),
         actor: Actor = Depends(require_role(ROLE_ANALYST)),
         db: Session = Depends(get_db_session)
     ):
-        items, total = list_cases(db, status=status_filter, limit=limit, offset=offset)
+        items, total = list_cases(
+            db,
+            status=status_filter,
+            resolution=resolution_filter,
+            recommended_action=action_filter,
+            limit=limit,
+            offset=offset
+        )
         return {
             'items': [item.to_dict() for item in items],
             'total': total,

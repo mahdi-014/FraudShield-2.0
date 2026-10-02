@@ -5,3 +5,6 @@ __pycache__/
 data/
 artifacts/*.joblib
 artifacts/*.ubj
+frontend/node_modules/
+frontend/dist/
+*.pyc

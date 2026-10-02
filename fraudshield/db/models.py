@@ -50,6 +50,7 @@ class TransactionRecord(Base):
             'service_actor': self.service_actor,
             'idempotency_key': self.idempotency_key,
             'request_hash': self.request_hash,
+            'features': self.features,
             'model_score': self.model_score,
             'model_factors': self.model_factors,
             'policy_reasons': self.policy_reasons,
