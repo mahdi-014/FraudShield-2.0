@@ -40,6 +40,7 @@ async function request<T>(
   try {
     response = await fetch(url, { ...options, headers });
   } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
     throw new ApiError(0, 'Unable to connect to FraudShield backend. Ensure the server is online.');
   }
 
@@ -69,6 +70,11 @@ async function request<T>(
     } else if (response.status === 503) {
       message = 'Database or backend service is temporarily unavailable.';
     }
+    if (token && (response.status === 401 || response.status === 403)) {
+      window.dispatchEvent(new CustomEvent('fraudshield-auth-error', {
+        detail: { token, message },
+      }));
+    }
     throw new ApiError(response.status, message);
   }
 
@@ -92,7 +98,8 @@ export const api = {
       recommended_action?: string;
       limit?: number;
       offset?: number;
-    } = {}
+    } = {},
+    signal?: AbortSignal
   ): Promise<CasesResponse> {
     const search = new URLSearchParams();
     if (params.status && params.status !== 'all') {
@@ -113,11 +120,11 @@ export const api = {
 
     const query = search.toString();
     const url = `/v1/cases${query ? `?${query}` : ''}`;
-    return request<CasesResponse>(url, { method: 'GET' }, token);
+    return request<CasesResponse>(url, { method: 'GET', signal }, token);
   },
 
-  async getCase(token: string, caseId: string): Promise<ReviewCase> {
-    return request<ReviewCase>(`/v1/cases/${encodeURIComponent(caseId)}`, { method: 'GET' }, token);
+  async getCase(token: string, caseId: string, signal?: AbortSignal): Promise<ReviewCase> {
+    return request<ReviewCase>(`/v1/cases/${encodeURIComponent(caseId)}`, { method: 'GET', signal }, token);
   },
 
   async executeAction(
@@ -135,10 +142,10 @@ export const api = {
     );
   },
 
-  async getTransactionAudit(token: string, transactionId: string): Promise<AuditResponse> {
+  async getTransactionAudit(token: string, transactionId: string, signal?: AbortSignal): Promise<AuditResponse> {
     return request<AuditResponse>(
       `/v1/transactions/${encodeURIComponent(transactionId)}/audit`,
-      { method: 'GET' },
+      { method: 'GET', signal },
       token
     );
   },

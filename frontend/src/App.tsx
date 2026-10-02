@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Actor, ReviewCase, HealthResponse } from './types';
 import { api, ApiError } from './services/api';
 import { Header } from './components/Header';
@@ -19,6 +19,12 @@ export const App: React.FC = () => {
   const [actor, setActor] = useState<Actor | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+
+  const currentToken = useRef<string | null>(null);
+  const queueRequest = useRef(0);
+  const detailRequest = useRef(0);
+  const invalidateQueue = useCallback(() => { queueRequest.current++; }, []);
+  const selectedCaseId = useRef<string | null>(null);
 
   // System Health
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -43,6 +49,38 @@ export const App: React.FC = () => {
   const [auditRefreshTrigger, setAuditRefreshTrigger] = useState(0);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'conflict' | 'error'; text: string } | null>(null);
 
+  const selectCase = useCallback((item: ReviewCase | null) => {
+    detailRequest.current++;
+    selectedCaseId.current = item?.id ?? null;
+    setSelectedCase(item);
+    setActiveAction(null);
+  }, []);
+
+  const clearSession = useCallback(() => {
+    currentToken.current = null;
+    queueRequest.current++;
+    detailRequest.current++;
+    setToken(null);
+    setActor(null);
+    setCases([]);
+    setTotalCases(0);
+    setQueueError(null);
+    setQueueLoading(false);
+    selectCase(null);
+  }, [selectCase]);
+
+  useEffect(() => {
+    const onAuthError = (event: Event) => {
+      const detail = (event as CustomEvent<{token: string; message: string}>).detail;
+      if (detail.token !== currentToken.current) return;
+      clearSession();
+      setAuthError(detail.message);
+      setIsAuthModalOpen(true);
+    };
+    window.addEventListener('fraudshield-auth-error', onAuthError);
+    return () => window.removeEventListener('fraudshield-auth-error', onAuthError);
+  }, [clearSession]);
+
   // Check health periodically or on mount
   const verifyHealth = useCallback(async () => {
     try {
@@ -65,6 +103,8 @@ export const App: React.FC = () => {
   // Fetch Cases Queue
   const fetchQueue = useCallback(async () => {
     if (!token) return;
+    const generation = ++queueRequest.current;
+    const isCurrent = () => generation === queueRequest.current && currentToken.current === token;
 
     setQueueLoading(true);
     setQueueError(null);
@@ -78,20 +118,14 @@ export const App: React.FC = () => {
         offset,
       });
 
+      if (!isCurrent()) return;
       setCases(res.items || []);
       setTotalCases(res.total || 0);
 
-      // Preserve selection or select first
-      if (res.items && res.items.length > 0) {
-        setSelectedCase((prev) => {
-          if (!prev) return res.items[0];
-          const found = res.items.find((c) => c.id === prev.id);
-          return found || res.items[0];
-        });
-      } else {
-        setSelectedCase(null);
-      }
+      selectCase(res.items.find((item) => item.id === selectedCaseId.current)
+        ?? res.items[0] ?? null);
     } catch (err: unknown) {
+      if (!isCurrent()) return;
       if (err instanceof ApiError) {
         if (err.status === 401 || err.status === 403) {
           setAuthError(err.detail);
@@ -105,29 +139,37 @@ export const App: React.FC = () => {
         setQueueError('Failed to fetch cases from backend.');
       }
     } finally {
-      setQueueLoading(false);
+      if (isCurrent()) setQueueLoading(false);
     }
-  }, [token, statusFilter, resolutionFilter, actionFilter, limit, offset]);
+  }, [token, statusFilter, resolutionFilter, actionFilter, limit, offset, selectCase]);
 
   useEffect(() => {
     if (token) {
       fetchQueue();
     }
-  }, [fetchQueue, token]);
+    return invalidateQueue;
+  }, [fetchQueue, token, invalidateQueue]);
 
   // Refresh single selected case
   const refreshSelectedCase = useCallback(async () => {
     if (!token || !selectedCase) return;
+    const generation = ++detailRequest.current;
     try {
       const refreshed = await api.getCase(token, selectedCase.id);
+      if (generation !== detailRequest.current || currentToken.current !== token ||
+          selectedCaseId.current !== selectedCase.id) return;
       setSelectedCase(refreshed);
     } catch (err) {
-      console.error('Failed to refresh case:', err);
+      if (generation === detailRequest.current && currentToken.current === token) {
+        setToastMessage({ type: 'error', text: err instanceof Error ? err.message : 'Could not refresh case.' });
+      }
     }
   }, [token, selectedCase]);
 
   // Auth Callbacks
   const handleAuthSuccess = (newToken: string, newActor: Actor) => {
+    clearSession();
+    currentToken.current = newToken;
     setToken(newToken);
     setActor(newActor);
     setIsAuthModalOpen(false);
@@ -140,12 +182,7 @@ export const App: React.FC = () => {
   };
 
   const handleSignOut = () => {
-    setToken(null);
-    setActor(null);
-    setCases([]);
-    setTotalCases(0);
-    setSelectedCase(null);
-    setActiveAction(null);
+    clearSession();
     setToastMessage({
       type: 'success',
       text: 'Signed out. In-memory credentials purged.',
@@ -154,7 +191,7 @@ export const App: React.FC = () => {
 
   // Decision Execution Callbacks
   const handleActionSuccess = (updatedCase: ReviewCase) => {
-    setSelectedCase(updatedCase);
+    selectCase(updatedCase);
     setAuditRefreshTrigger((prev) => prev + 1);
     fetchQueue();
     setToastMessage({
@@ -294,7 +331,7 @@ export const App: React.FC = () => {
                 statusFilter={statusFilter}
                 resolutionFilter={resolutionFilter}
                 actionFilter={actionFilter}
-                onSelectCase={(c) => setSelectedCase(c)}
+                onSelectCase={selectCase}
                 onRefresh={fetchQueue}
                 onPageChange={(newOffset) => setOffset(newOffset)}
                 onStatusFilterChange={(val) => {
@@ -316,6 +353,7 @@ export const App: React.FC = () => {
             <div className="lg:col-span-7 h-[650px] lg:h-auto flex flex-col">
               {selectedCase ? (
                 <CaseDetail
+                  key={selectedCase.id}
                   caseItem={selectedCase}
                   analystToken={token}
                   onOpenActionModal={(action) => setActiveAction(action)}
@@ -336,16 +374,18 @@ export const App: React.FC = () => {
       </main>
 
       {/* Auth Modal */}
-      <AuthModal
+      {isAuthModalOpen && <AuthModal
+        key={authError ?? 'signin'}
         isOpen={isAuthModalOpen}
         initialError={authError}
         onSuccess={handleAuthSuccess}
         onClose={actor ? () => setIsAuthModalOpen(false) : undefined}
-      />
+      />}
 
       {/* Decision Action Modal */}
       {activeAction && selectedCase && token && (
         <ActionModal
+          key={selectedCase.id + activeAction}
           isOpen={true}
           action={activeAction}
           caseItem={selectedCase}

@@ -1,7 +1,11 @@
 """FraudShield API with scoring, PostgreSQL persistence, state machine, and RBAC."""
 import math
 import os
-import secrets
+import logging
+import uuid
+from typing import Literal
+from fastapi.responses import JSONResponse
+from pydantic import model_validator
 from contextlib import asynccontextmanager
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Header, Query, status
@@ -27,6 +31,7 @@ from .db.repository import (
     IdempotencyConflictError, VersionConflictError, InvalidStateTransitionError
 )
 
+logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
 
 def validate_features_dict(value: dict) -> dict:
@@ -57,7 +62,7 @@ def validate_features_dict(value: dict) -> dict:
     return value
 
 class ScoreRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     transaction_id: str = Field(min_length=1, max_length=100)
     features: dict[str, object]
 
@@ -67,7 +72,7 @@ class ScoreRequest(BaseModel):
         return validate_features_dict(value)
 
 class CreateTransactionRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     client_transaction_id: Optional[str] = Field(None, min_length=1, max_length=100)
     transaction_id: Optional[str] = Field(None, min_length=1, max_length=100)
     features: dict[str, object]
@@ -77,6 +82,15 @@ class CreateTransactionRequest(BaseModel):
     def valid_features(cls, value):
         return validate_features_dict(value)
 
+    @model_validator(mode='after')
+    def validate_reference(self):
+        if not (self.client_transaction_id or self.transaction_id):
+            raise ValueError('A transaction reference is required')
+        if (self.client_transaction_id and self.transaction_id and
+                self.client_transaction_id != self.transaction_id):
+            raise ValueError('Transaction reference aliases must agree')
+        return self
+
     def get_client_id(self) -> str:
         tid = self.client_transaction_id or self.transaction_id
         if not tid:
@@ -84,7 +98,7 @@ class CreateTransactionRequest(BaseModel):
         return tid
 
 class AnalystActionRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     action: str = Field(..., pattern="^(release|reject)$")
     reason: str = Field(..., min_length=3, max_length=1000)
     expected_version: int = Field(..., ge=1)
@@ -109,17 +123,38 @@ def create_app(artifact_dir=None, database_url=None):
 
     app = FastAPI(
         title='FraudShield Research Scoring & Decision API',
-        version='0.2.0',
+        version='0.3.1',
         lifespan=lifespan
     )
 
+    origins = [origin.strip() for origin in
+               os.environ.get('FRAUDSHIELD_CORS_ORIGINS', '').split(',') if origin.strip()]
+    if '*' in origins:
+        raise ValueError('Configure explicit CORS origins; wildcard origins are not supported')
     app.add_middleware(
-        CORSMiddleware,
-        allow_origins=['*'],
-        allow_credentials=True,
-        allow_methods=['*'],
-        allow_headers=['*'],
+        CORSMiddleware, allow_origins=origins, allow_credentials=False,
+        allow_methods=['GET', 'POST'],
+        allow_headers=['Authorization', 'Content-Type', 'Idempotency-Key'],
     )
+
+    def report_failure(exc: Exception, database: bool):
+        request_id = uuid.uuid4().hex
+        # Do not log exception text, SQL parameters, tokens or request bodies.
+        logger.error('request_id=%s failure_type=%s', request_id, type(exc).__name__)
+        return JSONResponse(
+            status_code=503 if database else 500,
+            content={'detail': 'Database service is unavailable.' if database
+                     else 'Internal service error.', 'request_id': request_id},
+            headers={'X-Request-ID': request_id},
+        )
+
+    @app.exception_handler(SQLAlchemyError)
+    async def database_error_handler(request, exc):
+        return report_failure(exc, database=True)
+
+    @app.exception_handler(Exception)
+    async def unexpected_error_handler(request, exc):
+        return report_failure(exc, database=False)
 
     def get_current_actor(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> Actor:
         if credentials is None:
@@ -160,11 +195,9 @@ def create_app(artifact_dir=None, database_url=None):
                 yield session
         except HTTPException:
             raise
-        except Exception as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f'Database service error: {str(exc)}'
-            )
+        except SQLAlchemyError:
+            raise
+
 
     # -------------------------------------------------------------
     # Existing Baseline Endpoints (Preserved)
@@ -172,11 +205,15 @@ def create_app(artifact_dir=None, database_url=None):
     @app.get('/health/ready')
     def ready():
         db_ok = check_database_connection(app.state.database_url)
-        return {
-            'status': 'ready',
+        return JSONResponse(status_code=200 if db_ok else 503, content={
+            'status': 'ready' if db_ok else 'not_ready',
             'mode': 'historical_dataset_replay',
             'database': 'connected' if db_ok else ('unconfigured' if not app.state.database_url else 'disconnected')
-        }
+        })
+
+    @app.get('/health/scorer')
+    def scorer_ready():
+        return {'status': 'ready', 'mode': 'historical_dataset_replay'}
 
     @app.get('/v1/auth/me')
     def me(actor: Actor = Depends(get_current_actor)):
@@ -207,6 +244,8 @@ def create_app(artifact_dir=None, database_url=None):
         actor: Actor = Depends(require_role(ROLE_SERVICE)),
         db: Session = Depends(get_db_session)
     ):
+        if not idempotency_key.strip():
+            raise HTTPException(status_code=422, detail='Idempotency-Key must not be blank')
         try:
             client_id = request.get_client_id()
         except ValueError as err:
@@ -225,11 +264,8 @@ def create_app(artifact_dir=None, database_url=None):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(conflict))
         except HTTPException:
             raise
-        except (SQLAlchemyError, Exception) as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Database service is unavailable: {str(exc)}"
-            )
+        except SQLAlchemyError:
+            raise
 
         return tx.to_dict()
 
@@ -254,9 +290,9 @@ def create_app(artifact_dir=None, database_url=None):
     # -------------------------------------------------------------
     @app.get('/v1/cases')
     def get_cases(
-        status_filter: Optional[str] = Query(None, alias='status'),
-        resolution_filter: Optional[str] = Query(None, alias='resolution'),
-        action_filter: Optional[str] = Query(None, alias='recommended_action'),
+        status_filter: Optional[Literal['open', 'resolved']] = Query(None, alias='status'),
+        resolution_filter: Optional[Literal['released', 'rejected']] = Query(None, alias='resolution'),
+        action_filter: Optional[Literal['allow', 'warn', 'pause', 'hold']] = Query(None, alias='recommended_action'),
         limit: int = Query(20, ge=1, le=100),
         offset: int = Query(0, ge=0),
         actor: Actor = Depends(require_role(ROLE_ANALYST)),

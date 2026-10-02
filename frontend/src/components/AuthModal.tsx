@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { KeyRound, ShieldAlert, AlertCircle, Info, Loader2, ArrowRight } from 'lucide-react';
 import { api, ApiError } from '../services/api';
 import type { Actor } from '../types';
@@ -21,6 +21,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [error, setError] = useState<string | null>(initialError || null);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
 
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +44,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       // Authenticate token against backend /v1/auth/me
       const actor = await api.getMe(cleanToken);
 
+      if (!mounted.current) return;
       // Verify that actor has analyst role for case queue access
       if (actor.role !== 'analyst') {
         setError(
@@ -52,6 +58,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onSuccess(cleanToken, actor);
       setToken('');
     } catch (err) {
+      if (!mounted.current) return;
       if (err instanceof ApiError) {
         setErrorStatus(err.status);
         if (err.status === 401) {
@@ -65,12 +72,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setError('Failed to contact FraudShield backend. Check server connection.');
       }
     } finally {
-      setLoading(false);
+      if (mounted.current) setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" aria-label="AuthModal" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-800 bg-slate-900/60 flex items-center gap-3">

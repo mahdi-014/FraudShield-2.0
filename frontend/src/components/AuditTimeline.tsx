@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { AuditEvent } from '../types';
 import { api, formatDhakaTime } from '../services/api';
 import { History, UserCheck, Server, ArrowRight, Clock, AlertCircle, RotateCw } from 'lucide-react';
@@ -14,30 +14,37 @@ export const AuditTimeline: React.FC<AuditTimelineProps> = ({
   token,
   refreshTrigger,
 }) => {
+  const controller = useRef<AbortController | null>(null);
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAudit = useCallback(async () => {
     if (!transactionId || !token) return;
+    controller.current?.abort();
+    const request = new AbortController();
+    controller.current = request;
     setLoading(true);
     setError(null);
     try {
-      const res = await api.getTransactionAudit(token, transactionId);
+      const res = await api.getTransactionAudit(token, transactionId, request.signal);
+      if (request.signal.aborted) return;
       setEvents(res.audit_events || []);
     } catch (err: unknown) {
+      if (request.signal.aborted) return;
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError('Failed to fetch audit log.');
       }
     } finally {
-      setLoading(false);
+      if (!request.signal.aborted) setLoading(false);
     }
   }, [transactionId, token]);
 
   useEffect(() => {
     fetchAudit();
+    return () => controller.current?.abort();
   }, [fetchAudit, refreshTrigger]);
 
   return (
@@ -46,7 +53,7 @@ export const AuditTimeline: React.FC<AuditTimelineProps> = ({
         <div className="flex items-center gap-2">
           <History className="w-4 h-4 text-indigo-400" />
           <h3 className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
-            Immutable Audit Trail ({events.length} Events)
+            Audit History ({events.length} Events)
           </h3>
         </div>
         <button

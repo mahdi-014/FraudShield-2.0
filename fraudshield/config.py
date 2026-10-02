@@ -53,6 +53,8 @@ class AuthConfig:
             self._register_token(token, identity, role)
 
     def _register_token(self, token: str, identity: str, role: str):
+        if not identity.strip() or len(identity) > 100:
+            raise ValueError('Actor identity must contain 1 to 100 nonblank characters')
         if len(token) < 24:
             raise ValueError(f"Credential for '{identity}' must be at least 24 characters")
         if token in self.token_to_actor:

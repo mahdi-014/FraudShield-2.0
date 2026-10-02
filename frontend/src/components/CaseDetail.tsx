@@ -413,6 +413,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
         {/* Audit Trail Tab */}
         {activeTab === 'audit' && (
           <AuditTimeline
+            key={caseItem.transaction_id}
             transactionId={caseItem.transaction_id}
             token={analystToken}
             refreshTrigger={auditRefreshTrigger}

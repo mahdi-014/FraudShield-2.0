@@ -8,13 +8,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from fraudshield.api import create_app
-from fraudshield.config import get_artifact_dir, get_database_url
+from fraudshield.config import get_artifact_dir
+from conftest import safe_test_url
 from fraudshield.db.session import get_db
 from fraudshield.db.models import TransactionRecord
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def app_client():
-    app = create_app(artifact_dir=get_artifact_dir(), database_url=get_database_url())
+    app = create_app(artifact_dir=get_artifact_dir(), database_url=safe_test_url() or "postgresql+pg8000://test:test@127.0.0.1:1/unavailable_test_db")
     with TestClient(app) as client:
         yield client
 
@@ -38,33 +39,42 @@ def test_auth_me_unauthenticated(app_client):
     response = app_client.get("/v1/auth/me")
     assert response.status_code == 401
 
-def test_cases_filter_by_status_and_resolution(app_client):
+def test_cases_filter_by_status_and_resolution(app_client, pg_engine):
+    from fraudshield.db.repository import submit_transaction, execute_analyst_action
+    from fraudshield.scoring import Scorer
+    from sqlalchemy.orm import Session
+    import json
+    from pathlib import Path
+    scorer = Scorer(Path(__file__).resolve().parents[1] / 'artifacts')
+    sample = json.loads((Path(__file__).resolve().parents[1] / 'artifacts/sample_fraud.json').read_text())
+    with Session(pg_engine) as session:
+        tx1, _ = submit_transaction(session, 'checkout_service', uuid.uuid4().hex,
+            uuid.uuid4().hex, sample['features'], scorer)
+        tx2, _ = submit_transaction(session, 'checkout_service', uuid.uuid4().hex,
+            uuid.uuid4().hex, sample['features'], scorer)
+        open_id, resolved_id = tx1.review_case.id, tx2.review_case.id
+        execute_analyst_action(session, resolved_id, 'analyst_jane', 'release',
+            'Simulated analyst review', 1)
     headers = {"Authorization": "Bearer analyst-secret-token-key-32chars-jane"}
-    
-    # Query all
-    res = app_client.get("/v1/cases?limit=50", headers=headers)
-    assert res.status_code == 200
-    data = res.json()
-    assert "items" in data
-    assert "total" in data
+    for query, expected, field, value in [
+        ('status=open', open_id, 'status', 'open'),
+        ('status=resolved', resolved_id, 'status', 'resolved'),
+        ('resolution=released', resolved_id, 'resolution', 'released'),
+    ]:
+        response = app_client.get('/v1/cases?limit=100&' + query, headers=headers)
+        assert response.status_code == 200
+        items = response.json()['items']
+        assert expected in {case['id'] for case in items}
+        assert all(case[field] == value for case in items)
+    held = app_client.get('/v1/cases?limit=100&recommended_action=hold', headers=headers).json()
+    assert open_id in {case['id'] for case in held['items']}
+    assert all(case['transaction']['recommended_action'] == 'hold' for case in held['items'])
+    first = app_client.get('/v1/cases?limit=1&offset=0', headers=headers).json()
+    second = app_client.get('/v1/cases?limit=1&offset=1', headers=headers).json()
+    assert len(first['items']) == len(second['items']) == 1
+    assert first['items'][0]['id'] != second['items'][0]['id']
+    assert first['total'] == second['total'] >= 2
 
-    # Query with status=open
-    res_open = app_client.get("/v1/cases?status=open", headers=headers)
-    assert res_open.status_code == 200
-    for case in res_open.json()["items"]:
-        assert case["status"] == "open"
-
-    # Query with status=resolved
-    res_resolved = app_client.get("/v1/cases?status=resolved", headers=headers)
-    assert res_resolved.status_code == 200
-    for case in res_resolved.json()["items"]:
-        assert case["status"] == "resolved"
-
-    # Query with resolution=released
-    res_released = app_client.get("/v1/cases?resolution=released", headers=headers)
-    assert res_released.status_code == 200
-    for case in res_released.json()["items"]:
-        assert case["resolution"] == "released"
 
 def test_transaction_to_dict_includes_features():
     tx = TransactionRecord(

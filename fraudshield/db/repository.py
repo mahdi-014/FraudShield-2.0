@@ -2,7 +2,8 @@
 import hashlib
 import json
 from typing import Optional, Tuple, List
-from sqlalchemy.orm import Session
+from sqlalchemy import text
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 from .models import (
     TransactionRecord, ReviewCaseRecord, AnalystActionRecord, AuditEventRecord, utc_now
@@ -49,6 +50,13 @@ def submit_transaction(
         whether a new record was created (True) or an existing record returned (False).
     """
     canonical_hash = compute_canonical_hash(client_transaction_id, features)
+
+    # Serialize this actor/key across processes BEFORE checking or scoring.
+    # Transaction-scoped PostgreSQL locks release on commit/rollback/session close.
+    # Hash collisions only serialize unrelated requests; they cannot mix records.
+    lock_bytes = hashlib.sha256(json.dumps([service_actor, idempotency_key]).encode()).digest()[:8]
+    lock_key = int.from_bytes(lock_bytes, 'big', signed=True)
+    session.execute(text('SELECT pg_advisory_xact_lock(:lock_key)'), {'lock_key': lock_key})
 
     # Check for existing idempotency key for this service actor
     existing = session.query(TransactionRecord).filter(
@@ -110,7 +118,9 @@ def submit_transaction(
             payload={
                 'model_score': tx.model_score,
                 'recommended_action': tx.recommended_action,
-                'policy_reasons': tx.policy_reasons
+                'policy_reasons': tx.policy_reasons,
+                'explanation': assessment.get('explanation'),
+                'score_interpretation': assessment.get('score_interpretation'),
             }
         )
         session.add(audit)
@@ -155,7 +165,9 @@ def list_cases(
     if recommended_action:
         query = query.join(TransactionRecord).filter(TransactionRecord.recommended_action == recommended_action)
     total = query.count()
-    items = query.order_by(ReviewCaseRecord.created_at.desc()).offset(offset).limit(limit).all()
+    items = query.options(joinedload(ReviewCaseRecord.transaction).joinedload(TransactionRecord.review_case)).order_by(
+        ReviewCaseRecord.created_at.desc(), ReviewCaseRecord.id.desc()
+    ).offset(offset).limit(limit).all()
     return items, total
 
 def get_case_by_id(session: Session, case_id: str) -> Optional[ReviewCaseRecord]:
@@ -176,10 +188,7 @@ def execute_analyst_action(
 
     # Apply row-level locking on transaction
     tx_query = session.query(TransactionRecord).filter(TransactionRecord.id == case.transaction_id)
-    try:
-        tx = tx_query.with_for_update().first()
-    except Exception:
-        tx = tx_query.first()
+    tx = tx_query.with_for_update().populate_existing().first()
 
     if not tx:
         raise ValueError(f"Transaction '{case.transaction_id}' linked to case '{case_id}' not found.")
@@ -256,4 +265,4 @@ def execute_analyst_action(
 def get_transaction_audit(session: Session, transaction_id: str) -> List[AuditEventRecord]:
     return session.query(AuditEventRecord).filter(
         AuditEventRecord.transaction_id == transaction_id
-    ).order_by(AuditEventRecord.created_at.asc()).all()
+    ).order_by(AuditEventRecord.created_at.asc(), AuditEventRecord.id.asc()).all()

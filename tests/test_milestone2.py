@@ -166,7 +166,7 @@ def test_role_separation_enforced(configured_env):
 
 def test_database_unavailable_returns_503(configured_env, fraud_sample):
     # Test with unconfigured or unreachable database URL
-    with TestClient(create_app(artifact_dir=ARTIFACTS, database_url='postgresql+psycopg2://unreachable:5432/bad_db')) as client:
+    with TestClient(create_app(artifact_dir=ARTIFACTS, database_url='postgresql+pg8000://test:test@127.0.0.1:1/unavailable_test_db')) as client:
         res = client.post(
             '/v1/transactions',
             headers={**AUTH_SERVICE_1, 'Idempotency-Key': 'key-err-1'},
@@ -212,24 +212,8 @@ def test_failed_audit_write_rolls_back_state(monkeypatch):
 # =====================================================================
 # Integration Tests: Real PostgreSQL Database
 # =====================================================================
-def get_live_postgres_url():
-    url = get_test_database_url() or get_database_url()
-    if url and check_database_connection(url):
-        return url
-    return None
-
-LIVE_PG_URL = get_live_postgres_url()
-
-@pytest.fixture(scope='module')
-def pg_engine():
-    if not LIVE_PG_URL:
-        pytest.skip("PostgreSQL database is not available. Integration tests marked unverified.")
-    engine = create_engine(LIVE_PG_URL, pool_pre_ping=True)
-    # Ensure fresh schema for test run
-    Base.metadata.create_all(bind=engine)
-    yield engine
-    # Cleanup tables on teardown
-    Base.metadata.drop_all(bind=engine)
+from conftest import safe_test_url
+LIVE_PG_URL = safe_test_url()
 
 @pytest.fixture
 def pg_session(pg_engine):
@@ -245,7 +229,6 @@ def live_client(configured_env, pg_engine):
     with TestClient(app) as client:
         yield client
 
-@pytest.mark.skipif(not LIVE_PG_URL, reason="PostgreSQL database not available")
 def test_pg_persistence_across_restart(live_client, fraud_sample):
     key = 'test-idemp-restart-1'
     payload = {'transaction_id': 'tx-restart-1', 'features': fraud_sample['features']}
@@ -265,7 +248,6 @@ def test_pg_persistence_across_restart(live_client, fraud_sample):
         assert get_res.json()['id'] == tx_id
         assert get_res.json()['status'] == STATUS_HELD_FOR_REVIEW
 
-@pytest.mark.skipif(not LIVE_PG_URL, reason="PostgreSQL database not available")
 def test_pg_idempotency_sequential_and_concurrent(live_client, fraud_sample):
     key = 'test-idemp-conc-1'
     payload = {'transaction_id': 'tx-conc-1', 'features': fraud_sample['features']}
@@ -288,7 +270,6 @@ def test_pg_idempotency_sequential_and_concurrent(live_client, fraud_sample):
     tx_ids = set(r.json()['id'] for r in responses)
     assert len(tx_ids) == 1, "Concurrent retries must resolve to a single transaction"
 
-@pytest.mark.skipif(not LIVE_PG_URL, reason="PostgreSQL database not available")
 def test_pg_different_input_same_key_conflict(live_client, fraud_sample):
     key = 'test-idemp-conflict-1'
     payload1 = {'transaction_id': 'tx-conf-1', 'features': fraud_sample['features']}
@@ -308,7 +289,6 @@ def test_pg_different_input_same_key_conflict(live_client, fraud_sample):
     )
     assert res2.status_code == 409
 
-@pytest.mark.skipif(not LIVE_PG_URL, reason="PostgreSQL database not available")
 def test_pg_service_caller_isolation(live_client, fraud_sample):
     key = 'test-isolation-1'
     payload = {'transaction_id': 'tx-iso-1', 'features': fraud_sample['features']}
@@ -328,7 +308,6 @@ def test_pg_service_caller_isolation(live_client, fraud_sample):
     res_analyst = live_client.get(f'/v1/transactions/{tx_id}', headers=AUTH_ANALYST_1)
     assert res_analyst.status_code == 200
 
-@pytest.mark.skipif(not LIVE_PG_URL, reason="PostgreSQL database not available")
 def test_pg_analyst_release_and_terminal_immutability(live_client, fraud_sample):
     key = 'test-analyst-flow-1'
     res = live_client.post(
@@ -345,7 +324,7 @@ def test_pg_analyst_release_and_terminal_immutability(live_client, fraud_sample)
     action_res = live_client.post(
         f'/v1/cases/{case_id}/actions',
         headers=AUTH_ANALYST_1,
-        json={'action': 'release', 'reason': 'Identity verified via OTP', 'expected_version': 1}
+        json={'action': 'release', 'reason': 'Simulated customer verification via OTP', 'expected_version': 1}
     )
     assert action_res.status_code == 200
     assert action_res.json()['transaction']['status'] == STATUS_COMPLETED
@@ -369,7 +348,6 @@ def test_pg_analyst_release_and_terminal_immutability(live_client, fraud_sample)
     assert events[1]['actor'] == 'analyst_jane'
     assert events[1]['resulting_status'] == STATUS_COMPLETED
 
-@pytest.mark.skipif(not LIVE_PG_URL, reason="PostgreSQL database not available")
 def test_pg_concurrent_analyst_actions_conflict(live_client, fraud_sample):
     key = 'test-analyst-race-1'
     res = live_client.post(

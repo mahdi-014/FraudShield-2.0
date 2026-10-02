@@ -8,3 +8,9 @@ artifacts/*.ubj
 frontend/node_modules/
 frontend/dist/
 *.pyc
+
+.venv-m31/
+frontend/test-results/
+frontend/playwright-report/
+FraudShield_Milestone_3_1/
+

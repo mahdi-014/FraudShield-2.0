@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { ReviewCase } from '../types';
 import { api, ApiError } from '../services/api';
 import { AlertCircle, Check, X, Loader2, AlertTriangle } from 'lucide-react';
@@ -27,6 +27,11 @@ export const ActionModal: React.FC<ActionModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isConflict, setIsConflict] = useState(false);
 
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   if (!isOpen) return null;
 
   const tx = caseItem.transaction;
@@ -51,9 +56,11 @@ export const ActionModal: React.FC<ActionModalProps> = ({
         expected_version: tx?.version ?? 1,
       });
 
+      if (!mounted.current) return;
       onSuccess(response.case);
       onClose();
     } catch (err) {
+      if (!mounted.current) return;
       if (err instanceof ApiError) {
         if (err.status === 409) {
           setIsConflict(true);
@@ -69,12 +76,12 @@ export const ActionModal: React.FC<ActionModalProps> = ({
         setError('Failed to execute decision. Verify backend connectivity.');
       }
     } finally {
-      setSubmitting(false);
+      if (mounted.current) setSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" aria-label="ActionModal" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl max-w-lg w-full overflow-hidden">
         {/* Header */}
         <div
@@ -108,7 +115,7 @@ export const ActionModal: React.FC<ActionModalProps> = ({
           {/* Target Meta / Version Protection */}
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg text-xs space-y-1.5">
             <div className="flex items-center justify-between text-slate-400">
-              <span>Optimistic Concurrency Protection:</span>
+              <span>Decision applies to the displayed case version:</span>
               <span className="font-mono text-indigo-400 font-semibold">
                 expected_version = {tx?.version ?? 1}
               </span>
@@ -132,6 +139,7 @@ export const ActionModal: React.FC<ActionModalProps> = ({
             </label>
             <textarea
               id="action-reason-input"
+              maxLength={1000}
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}

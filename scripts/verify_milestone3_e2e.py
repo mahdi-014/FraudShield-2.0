@@ -156,7 +156,7 @@ def run_verification():
     expected_v = detail_tx["version"]
     release_payload = {
         "action": "release",
-        "reason": "Manual identity review confirmed legitimate customer replay activity.",
+        "reason": "Simulated analyst release: customer identity review and verification are simulated.",
         "expected_version": expected_v
     }
     print(f"  Submitting POST /v1/cases/{case_to_release['id']}/actions with expected_version={expected_v}")
@@ -196,7 +196,7 @@ def run_verification():
     reject_tx = res_reject_detail.json()["transaction"]
     reject_payload = {
         "action": "reject",
-        "reason": "Confirmed anomalous velocity and high-risk credential replay.",
+        "reason": "Simulated analyst rejection based on displayed historical replay risk factors.",
         "expected_version": reject_tx["version"]
     }
     print(f"  Submitting POST /v1/cases/{case_to_reject['id']}/actions (reject) with expected_version={reject_tx['version']}")

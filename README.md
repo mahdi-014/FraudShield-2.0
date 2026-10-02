@@ -1,6 +1,6 @@
 # FraudShield: Machine Learning Risk Assessment & Decision System
 
-FraudShield scores transaction requests against a reproducible IEEE-CIS fraud detection model (XGBoost candidate with TreeSHAP explanations), enforces policy thresholds, and provides persistent PostgreSQL storage, a simulated payment state machine, analyst review queues, optimistic concurrency control, and append-only audit histories.
+FraudShield scores transaction requests against a reproducible IEEE-CIS fraud detection model (XGBoost candidate with TreeSHAP explanations), enforces policy thresholds, and provides persistent PostgreSQL storage, a simulated payment state machine, analyst review queues, optimistic concurrency control, and application-level append-only audit histories (not database-enforced immutable storage).
 
 > **Note on Research Prototype Scope:**
 > This is a simulated transaction risk system. It does not move actual funds, validate live Bangladesh MFS rails, or connect to production payment gateways. Labels indicate historical dataset outcomes. Customer acknowledgement (`awaiting_acknowledgement`) and multi-factor customer verification flows (`pending_verification`) are deferred to future milestones.
@@ -40,7 +40,7 @@ FraudShield scores transaction requests against a reproducible IEEE-CIS fraud de
 
 ### 1. Environment & Dependencies
 
-Use Python 3.12+ in an isolated virtual environment:
+Use Python 3.12 in an isolated virtual environment:
 
 ```powershell
 python -m venv .venv
@@ -121,7 +121,7 @@ Run the automated demonstration script to observe the full lifecycle:
 1. Submit held-out fraud sample with service credentials (`checkout_service`).
 2. Observe model assessment (`hold`, score ~0.8057) and creation of a review case in `held_for_review`.
 3. Analyst (`analyst_jane`) fetches the case and reviews TreeSHAP factors.
-4. Analyst releases the case with verified justification and expected record version.
+4. Analyst releases the case with an explicitly simulated justification and expected record version.
 5. Review complete audit log demonstrating authenticated actors and timestamps.
 
 ```powershell
@@ -267,7 +267,7 @@ npm run dev
   - `src/components/CaseQueue.tsx`: Paginated case queue table with server-side filters.
   - `src/components/CaseDetail.tsx`: Score card, TreeSHAP breakdown, policy metadata, feature snapshot.
   - `src/components/ActionModal.tsx`: Reason validation, optimistic locking, and conflict handling.
-  - `src/components/AuditTimeline.tsx`: Immutable audit history with Asia/Dhaka time.
+  - `src/components/AuditTimeline.tsx`: Audit history with Asia/Dhaka time.
   - `src/services/api.ts`: Typed API client with custom error handling.
 - `fraudshield/features.py`: Feature normalization and contract definition.
 - `fraudshield/scoring.py`: Model loader, policy evaluator, and TreeSHAP log-odds explanation reconciliation.

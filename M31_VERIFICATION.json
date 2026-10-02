@@ -1,0 +1,46 @@
+{
+  "milestone": "3.1",
+  "status": "verified and complete; live PostgreSQL & Chromium gate passed",
+  "python": "3.12.10",
+  "environment": "separate virtual environment .venv-m31 with unchanged original requirements",
+  "pytest": {
+    "passed": 65,
+    "failed": 0,
+    "skipped": 0,
+    "reason": "live PostgreSQL verified"
+  },
+  "browser_api_fixture_tests": {
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "browser": "Chromium"
+  },
+  "live_browser_test": "passed (1 live test executed against isolated PostgreSQL API with real release and reject workflows)",
+  "frontend_build": "passed",
+  "frontend_lint": {
+    "status": "blocked_by_windows_code_integrity",
+    "detail": "Windows Code Integrity policy blocked unsigned oxlint.win32-x64-msvc.node binary; retained and reported"
+  },
+  "pip_check": "passed",
+  "offline_migration_sql": "passed",
+  "live_migration": "passed (executed in isolated schema)",
+  "scores": {
+    "fraud": 0.8056925535202026,
+    "legitimate": 0.041038867086172104
+  },
+  "explanation_reconciliation": "passed",
+  "artifact_hashes_unchanged": true,
+  "artifact_sha256": {
+    "evaluation.md": "dc1099b658e4afd6384ae3bb9355ee7675f810cea9d8389427b4fcb31db43aca",
+    "sample_legitimate.json": "12fe06ad3c20ba2c4ea4c4a1cb36d64014db3e48ca8263fe1b1c02a62ebccd06",
+    "example_response.json": "045dabfef55533b2bdd452bc363f98f1bd338f5185d0473d470128ec304e1fc9",
+    "baseline.joblib": "6b619a9071290f31257edb861e59850561e571121e5d94346b0c0588f03fb736",
+    "sample_fraud.json": "e4736f68304fecba60f5e84dbba52602220b9185b450a1205a25a75f8e0f5004",
+    "model.ubj": "575ec10f5b5bd8a54a2405fdea69b4e96af2d22fbbc40ad6f5ddda07312f2eb8",
+    "preprocessor.joblib": "4532ac0853e9a96154015c53c12fe52240eedbee208f00207c4dbebcafb250fc",
+    "verification.json": "c777519d3501d1a11c74380650b4bfef64b3c934fbf9afb7a09308b6f19c9067",
+    "metadata.json": "bfb4978e99e9bcc8070751d2b8fd982bdea49ea17e65afde305aed21d8ddf7ee"
+  },
+  "real_api_process_restart": "passed (confirmed saved case data persists across a real API process restart)",
+  "windows_dependency_imports": "passed (all dependencies verified on Windows 11)"
+}

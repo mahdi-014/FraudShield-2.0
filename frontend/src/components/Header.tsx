@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
           <span>
-            <strong className="font-semibold">Simulated Transactions Notice:</strong> Research prototype operating on historical replay. No real-world funds move; customer OTP verification and acknowledgement flows are simulated.
+            <strong className="font-semibold">Simulated Transactions Notice:</strong> Research prototype operating on historical replay. No real-world funds move; customer verification and acknowledgement are planned features.
           </span>
         </div>
         <span className="hidden md:inline text-amber-400/80 font-mono text-[11px]">
@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-2">
               <span className="font-bold text-lg text-slate-100 tracking-tight">FraudShield</span>
               <span className="text-[11px] font-medium uppercase px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
-                Milestone 3
+                Milestone 3.1
               </span>
             </div>
             <p className="text-xs text-slate-400">Analyst Risk & Decision Console</p>

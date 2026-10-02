@@ -2,12 +2,13 @@
 Submits realistic replay fraud samples through the authorized service endpoint.
 """
 import json
+import os
 import uuid
 from pathlib import Path
 import httpx
 
-API_URL = "http://127.0.0.1:8000"
-SERVICE_KEY = "service-secret-token-key-32chars-checkout"
+API_URL = os.environ.get("FRAUDSHIELD_URL", "http://127.0.0.1:8000")
+SERVICE_KEY = os.environ["FRAUDSHIELD_SERVICE_KEY"]
 
 def prepare_cases():
     client = httpx.Client(base_url=API_URL, timeout=15, trust_env=False)
@@ -27,8 +28,8 @@ def prepare_cases():
     idemp_1 = f"m3-demo-release-{uuid.uuid4().hex[:8]}"
     client_tx_1 = f"TX-M3-REL-{uuid.uuid4().hex[:6].upper()}"
     feat_1 = dict(base_features)
-    # Vary TransactionAmt slightly for realistic differentiation
-    feat_1["TransactionAmt"] = 150.00
+    # Distinct request references identify these simulated replay cases
+    # Keep the frozen sample; use distinct references/keys for separate cases.
     res_1 = client.post(
         "/v1/transactions",
         headers={
@@ -49,7 +50,7 @@ def prepare_cases():
     idemp_2 = f"m3-demo-reject-{uuid.uuid4().hex[:8]}"
     client_tx_2 = f"TX-M3-REJ-{uuid.uuid4().hex[:6].upper()}"
     feat_2 = dict(base_features)
-    feat_2["TransactionAmt"] = 350.50
+    # Keep the frozen sample for reproducible scoring.
     res_2 = client.post(
         "/v1/transactions",
         headers={
@@ -70,7 +71,7 @@ def prepare_cases():
     idemp_3 = f"m3-demo-queue-{uuid.uuid4().hex[:8]}"
     client_tx_3 = f"TX-M3-QUE-{uuid.uuid4().hex[:6].upper()}"
     feat_3 = dict(base_features)
-    feat_3["TransactionAmt"] = 720.00
+    # Keep the frozen sample for reproducible scoring.
     res_3 = client.post(
         "/v1/transactions",
         headers={
